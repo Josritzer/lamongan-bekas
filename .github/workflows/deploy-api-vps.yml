@@ -1,0 +1,51 @@
+name: Deploy Lamongan Bekas API to VPS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployment settings
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          API_DOMAIN: ${{ vars.API_DOMAIN }}
+        run: |
+          set -eu
+          for key in VPS_HOST VPS_USER VPS_SSH_PRIVATE_KEY DATABASE_URL API_DOMAIN; do
+            eval 'value=${'"$key"'}'
+            if [ -z "$value" ]; then echo "Missing required GitHub secret/variable: $key"; exit 1; fi
+          done
+          case "$API_DOMAIN" in *://*|*/*|*' '*) echo "API_DOMAIN must be a hostname only"; exit 1;; esac
+      - name: Prepare SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+      - name: Copy API and deploy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          API_DOMAIN: ${{ vars.API_DOMAIN }}
+        run: |
+          set -eu
+          tar -czf /tmp/lb-api.tgz backend docker-compose.yml Caddyfile
+          scp /tmp/lb-api.tgz "$VPS_USER@$VPS_HOST:/tmp/lb-api.tgz"
+          ssh "$VPS_USER@$VPS_HOST" "mkdir -p ~/lamongan-bekas-api && tar -xzf /tmp/lb-api.tgz -C ~/lamongan-bekas-api && rm /tmp/lb-api.tgz"
+          printf 'DATABASE_URL=%s\nAPI_DOMAIN=%s\n' "$DATABASE_URL" "$API_DOMAIN" > /tmp/lb-api.env
+          scp /tmp/lb-api.env "$VPS_USER@$VPS_HOST:~/lamongan-bekas-api/.env"
+          rm -f /tmp/lb-api.env
+          ssh "$VPS_USER@$VPS_HOST" "cd ~/lamongan-bekas-api && docker compose up -d --build && docker compose ps"
