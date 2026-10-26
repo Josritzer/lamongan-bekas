@@ -48,4 +48,4 @@ jobs:
             sleep 1
           done
           grep -q '"ok":true' /tmp/lb-health.json
-          curl --fail --silent http://127.0.0.1:18080/categories | grep -q 'Konfigurasi database belum tersedia'
+          curl --silent http://127.0.0.1:18080/categories | grep -q 'Konfigurasi database belum tersedia'
