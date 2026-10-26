@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -299,7 +298,7 @@ private fun LamonganBekasApp() {
                             else -> {
                                 Text("${listings.size} barang ditemukan", color = Muted, fontSize = 12.sp)
                                 Spacer(Modifier.height(10.dp))
-                                items(listings, key = { it.id }) { listing ->
+                                listings.forEach { listing ->
                                     Surface(
                                         color = Color.White,
                                         shape = RoundedCornerShape(18.dp),
