@@ -51,6 +51,9 @@ private data class Listing(
 )
 
 private suspend fun apiGet(path: String): JSONObject = withContext(Dispatchers.IO) {
+    if (BuildConfig.API_BASE_URL.isBlank()) {
+        throw IllegalStateException("Alamat API belum dikonfigurasi. Backend perlu diaktifkan terlebih dahulu.")
+    }
     val connection = (URL(BuildConfig.API_BASE_URL + path).openConnection() as HttpURLConnection)
     connection.requestMethod = "GET"
     connection.connectTimeout = 10_000
