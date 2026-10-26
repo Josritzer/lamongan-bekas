@@ -4,6 +4,14 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val apiBaseUrl = providers.gradleProperty("API_BASE_URL")
+    .orElse(providers.environmentVariable("API_BASE_URL"))
+    .getOrElse("")
+    .trim()
+    .trimEnd('/')
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+
 android {
     namespace = "id.lamonganbekas.app"
     compileSdk = 35
@@ -14,7 +22,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
-        buildConfigField("String", "API_BASE_URL", "\"\"")
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildFeatures {
