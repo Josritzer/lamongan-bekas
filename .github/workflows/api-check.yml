@@ -1,0 +1,51 @@
+name: Check Lamongan Bekas API
+
+on:
+  push:
+    branches:
+      - feat/android-native-apk
+    paths:
+      - "backend/**"
+      - "docker-compose.yml"
+      - "Caddyfile"
+      - ".github/workflows/api-check.yml"
+      - ".github/workflows/deploy-api-vps.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "docker-compose.yml"
+      - "Caddyfile"
+      - ".github/workflows/api-check.yml"
+      - ".github/workflows/deploy-api-vps.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: backend/package.json
+      - name: Validate JavaScript syntax
+        run: node --check server.mjs
+      - name: Install production dependencies
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Verify API starts without exposing database credentials
+        run: |
+          PORT=18080 node server.mjs > /tmp/lb-api.log 2>&1 &
+          API_PID=$!
+          trap 'kill "$API_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:18080/health > /tmp/lb-health.json; then break; fi
+            sleep 1
+          done
+          grep -q '"ok":true' /tmp/lb-health.json
+          curl --fail --silent http://127.0.0.1:18080/categories | grep -q 'Konfigurasi database belum tersedia'
